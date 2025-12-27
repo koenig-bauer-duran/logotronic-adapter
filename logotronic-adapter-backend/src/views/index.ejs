@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Logotronic Adapter</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+      :root {
+        --clr-bg-body: #000028;
+        --clr-bg-panel: #23233c;
+        --clr-bg-subpanel: #000028;
+        --clr-text: #ffffff;
+        --clr-green: #018136;
+        --clr-red: #b81e31;
+        --clr-gray: #b3b3be;
+        --radius: 10px;
+        --transition: 0.25s ease;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 0 20px 40px;
+        font-family: "Segoe UI", Roboto, Arial, sans-serif;
+        background: var(--clr-bg-body);
+        color: var(--clr-text);
+      }
+      header {
+        background: var(--clr-bg-panel);
+        padding: 18px 24px;
+        margin: 0 -20px 30px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 3px solid #111145;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+      }
+      header h1 {
+        font-size: 1.4rem;
+        letter-spacing: 0.5px;
+        margin: 0;
+        font-weight: 600;
+      }
+      header nav {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      header nav a {
+        color: var(--clr-text);
+        text-decoration: none;
+        font-size: 0.85rem;
+        opacity: 0.8;
+        transition: var(--transition);
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+      }
+      header nav a:hover {
+        opacity: 1;
+        border-color: #3d3d5f;
+        background: rgba(255, 255, 255, 0.05);
+      }
+      #last-update {
+        font-size: 0.75rem;
+        opacity: 0.7;
+      }
+      .dashboard {
+        display: grid;
+        gap: 28px;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      }
+      .panel {
+        background: var(--clr-bg-panel);
+        border: 1px solid #2f2f4d;
+        border-radius: var(--radius);
+        padding: 16px 18px 20px;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        min-height: 170px;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+        overflow: hidden;
+      }
+      .panel::before {
+        /* subtle gradient top sheen */
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 50px;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.08),
+          transparent
+        );
+        pointer-events: none;
+      }
+      .panel-title {
+        margin: 0 0 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .status-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--clr-gray);
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1),
+          0 0 6px rgba(0, 0, 0, 0.6) inset;
+        transition: var(--transition);
+      }
+      .status-dot.connected {
+        background: var(--clr-green);
+      }
+      .status-dot.disconnected {
+        background: var(--clr-red);
+      }
+      .status-dot.error {
+        background: var(--clr-gray);
+      }
+      .status-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .subpanels {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        margin-top: 4px;
+      }
+      .subpanel {
+        background: var(--clr-bg-subpanel);
+        border: 1px solid #1e1e3a;
+        border-radius: var(--radius);
+        padding: 10px 12px 12px;
+        position: relative;
+        min-height: 92px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        overflow: hidden;
+      }
+      .subpanel h3 {
+        margin: 0 0 10px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .status-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        font-weight: 500;
+        letter-spacing: 1px;
+        opacity: 0.85;
+      }
+      .timestamp,
+      .warning {
+        font-size: 0.65rem;
+        opacity: 0.6;
+        margin-top: 4px;
+        line-height: 1.2;
+      }
+      .warning {
+        color: var(--clr-red);
+        opacity: 0.85;
+      }
+      .flex-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .fade-in {
+        animation: fade 0.5s ease;
+      }
+      @keyframes fade {
+        from {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .skeleton {
+        background: #2d2d53;
+        border-radius: 6px;
+        height: 12px;
+        width: 60%;
+        animation: pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.35;
+        }
+        50% {
+          opacity: 0.75;
+        }
+      }
+      footer {
+        margin-top: 40px;
+        font-size: 0.55rem;
+        text-align: center;
+        opacity: 0.4;
+      }
+      /* Preview Notification */
+      .preview-notification {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: var(--clr-bg-panel);
+        border: 1px solid #3d3d5f;
+        border-radius: var(--radius);
+        padding: 16px 20px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        animation: slideIn 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .preview-notification .icon {
+        width: 40px;
+        height: 40px;
+        background: var(--clr-green);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .preview-notification .content {
+        flex: 1;
+      }
+      .preview-notification .content h4 {
+        margin: 0 0 4px;
+        font-size: 0.9rem;
+      }
+      .preview-notification .content p {
+        margin: 0;
+        font-size: 0.75rem;
+        opacity: 0.7;
+      }
+      .preview-notification .actions {
+        display: flex;
+        gap: 8px;
+      }
+      .preview-notification button {
+        background: transparent;
+        border: 1px solid #3d3d5f;
+        color: #fff;
+        cursor: pointer;
+        padding: 8px 14px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        transition: 0.2s;
+      }
+      .preview-notification button:hover {
+        background: #3d3d5f;
+      }
+      .preview-notification button.primary {
+        background: var(--clr-green);
+        border-color: var(--clr-green);
+      }
+      .preview-notification button.primary:hover {
+        background: #019947;
+      }
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Logotronic Adapter</h1>
+      <nav>
+        <a href="/preview">Preview</a>
+        <div id="last-update">Waiting...</div>
+      </nav>
+    </header>
+    <main class="dashboard" id="dashboard">
+      <!-- Panels will be injected by JS -->
+    </main>
+    <div id="preview-notification" class="preview-notification hidden">
+      <div class="icon">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="white"
+          stroke-width="2"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+          <polyline points="21 15 16 10 5 21"></polyline>
+        </svg>
+      </div>
+      <div class="content">
+        <h4>New Preview Available</h4>
+        <p id="preview-notification-info">Preview images received</p>
+      </div>
+      <div class="actions">
+        <button id="preview-dismiss-btn">Dismiss</button>
+        <button id="preview-view-btn" class="primary">View Preview</button>
+      </div>
+    </div>
+    <footer></footer>
+
+    <script>
+      const socket = io();
+      const dashboardEl = document.getElementById("dashboard");
+      const lastUpdateEl = document.getElementById("last-update");
+      let latestStatuses = {};
+      let lastUpdateTime = null;
+      const ADAPTER_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+      function humanizeKey(key) {
+        return (
+          key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, " $1")
+        );
+      }
+
+      function calcAdapterStatus() {
+        if (!lastUpdateTime) {
+          return "disconnected";
+        }
+        const delta = Date.now() - lastUpdateTime;
+        return delta > ADAPTER_TIMEOUT_MS ? "disconnected" : "connected";
+      }
+
+      function formatTimestamp(date) {
+        if (!date) return "—";
+        return date.toLocaleTimeString("tr-TR", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+      }
+
+      function statusClass(s) {
+        if (s === "connected") return "connected";
+        if (s === "disconnected") return "disconnected";
+        return "error";
+      }
+
+      function buildPanelHTML() {
+        const adapterStatus = calcAdapterStatus();
+        const machineStatus = latestStatuses.plc || "disconnected";
+        const logotronicStatus = latestStatuses.logotronic || "disconnected";
+        const connectorStatus = latestStatuses.connector || "disconnected";
+        const databusStatus = latestStatuses.databus || "disconnected";
+
+        return `
+          <section class="panel fade-in" aria-label="Machine Status">
+            <h2 class="panel-title"><span class="status-dot ${statusClass(
+              machineStatus
+            )}"></span> Machine</h2>
+            <div class="status-grid">
+              <div class="status-label">${machineStatus.toUpperCase()}</div>
+              <div class="timestamp">Last Update: ${formatTimestamp(
+                lastUpdateTime
+              )}</div>
+            </div>
+          </section>
+          <section class="panel fade-in" aria-label="Adapter Status">
+            <h2 class="panel-title"><span class="status-dot ${statusClass(
+              adapterStatus
+            )}"></span> Adapter</h2>
+            <div class="status-grid">
+              <div class="status-label">${adapterStatus.toUpperCase()}</div>
+              <div class="timestamp">Last Update: ${formatTimestamp(
+                lastUpdateTime
+              )}</div>
+              ${
+                adapterStatus === "disconnected" && lastUpdateTime
+                  ? '<div class="warning">No data for 5 minutes.</div>'
+                  : ""
+              }
+              <div class="subpanels">
+                <div class="subpanel">
+                  <h3><span class="status-dot ${statusClass(
+                    connectorStatus
+                  )}"></span> Connector</h3>
+                  <div class="status-label">${connectorStatus.toUpperCase()}</div>
+                </div>
+                <div class="subpanel">
+                  <h3><span class="status-dot ${statusClass(
+                    databusStatus
+                  )}"></span> Databus</h3>
+                  <div class="status-label">${databusStatus.toUpperCase()}</div>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section class="panel fade-in" aria-label="Logotronic Status">
+            <h2 class="panel-title"><span class="status-dot ${statusClass(
+              logotronicStatus
+            )}"></span> Logotronic</h2>
+            <div class="status-grid">
+              <div class="status-label">${logotronicStatus.toUpperCase()}</div>
+              <div class="timestamp">Last Update: ${formatTimestamp(
+                lastUpdateTime
+              )}</div>
+            </div>
+          </section>
+        `;
+      }
+
+      function render() {
+        dashboardEl.innerHTML = buildPanelHTML();
+      }
+
+      function handleStatusUpdate(data) {
+        console.log("Received statusUpdate:", data);
+        latestStatuses = data.status || {};
+        lastUpdateTime = new Date();
+        lastUpdateEl.textContent =
+          "Last Update: " + formatTimestamp(lastUpdateTime);
+        render();
+        console.log("Status updated:", latestStatuses);
+      }
+
+      socket.on("statusUpdate", handleStatusUpdate);
+      socket.on("disconnect", () => {
+        lastUpdateEl.textContent = "Connection lost – reconnecting...";
+      });
+
+      // Timeout watcher for adapter status
+      setInterval(() => {
+        if (!lastUpdateTime) return; // nothing yet
+        const adapterStatus = calcAdapterStatus();
+        if (adapterStatus === "disconnected") {
+          render();
+        }
+      }, 10000); // check every 10s
+
+      // Initial skeleton UI before data arrives
+      dashboardEl.innerHTML = `
+        <section class="panel" aria-label="Machine Status">
+          <h2 class="panel-title"><span class="status-dot error"></span> Machine</h2>
+          <div class="skeleton"></div>
+        </section>
+        <section class="panel" aria-label="Adapter Status">
+          <h2 class="panel-title"><span class="status-dot error"></span> Adapter</h2>
+          <div class="skeleton"></div>
+        </section>
+        <section class="panel" aria-label="Logotronic Status">
+          <h2 class="panel-title"><span class="status-dot error"></span> Logotronic</h2>
+          <div class="skeleton"></div>
+        </section>
+      `;
+
+      // ---- Preview Notification Handling ----
+      const previewNotification = document.getElementById(
+        "preview-notification"
+      );
+      const previewNotificationInfo = document.getElementById(
+        "preview-notification-info"
+      );
+      const previewDismissBtn = document.getElementById("preview-dismiss-btn");
+      const previewViewBtn = document.getElementById("preview-view-btn");
+      let notificationTimeout = null;
+
+      function hidePreviewNotification() {
+        previewNotification.classList.add("hidden");
+        if (notificationTimeout) {
+          clearTimeout(notificationTimeout);
+          notificationTimeout = null;
+        }
+      }
+
+      function showPreviewNotification(payload) {
+        if (!payload || !payload.images || !payload.images.length) return;
+
+        const count = payload.images.length;
+        previewNotificationInfo.textContent = `${count} preview image${
+          count > 1 ? "s" : ""
+        } received`;
+        previewNotification.classList.remove("hidden");
+
+        // Auto-hide after 10 seconds
+        if (notificationTimeout) {
+          clearTimeout(notificationTimeout);
+        }
+        notificationTimeout = setTimeout(hidePreviewNotification, 10000);
+      }
+
+      previewDismissBtn.addEventListener("click", hidePreviewNotification);
+
+      previewViewBtn.addEventListener("click", () => {
+        hidePreviewNotification();
+        window.open("/preview", "_blank");
+      });
+
+      socket.on("previewImages", (payload) => {
+        console.log("Received previewImages payload", payload);
+        showPreviewNotification(payload);
+      });
+    </script>
+  </body>
+</html>

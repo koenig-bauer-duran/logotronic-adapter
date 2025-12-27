@@ -791,9 +791,9 @@ Follow these steps to add support for a new Logotronic telegram:
 
 ## 20. Contact / Maintainer
 
-**Fatih Mehmet Dağ**  
-Solution Architect  
-fatih.dag@siemens.com
+**Aykut Unver**  
+Head of Electronics  
+aykut.unver@koenig-bauer.com
 
 ---
 
@@ -823,4 +823,4 @@ See `CHANGELOG.md` for version history and changes.
 
 ISC License - See package.json for details.
 
-**Author:** Fatih Mehmet Dağ
+**Author:** Aykut Unver

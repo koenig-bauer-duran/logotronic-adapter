@@ -1,0 +1,1 @@
+# logotronic-adapter

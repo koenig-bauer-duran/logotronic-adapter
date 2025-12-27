@@ -1,10 +1,13 @@
+
+
+
+
 # Logotronic Adapter Project
 
 [![Node.js](https://img.shields.io/badge/Node.js-v25.2-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-ISC-yellow.svg)](LICENSE)
-
 
 ## Table of Contents
 

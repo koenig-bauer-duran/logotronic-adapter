@@ -268,6 +268,7 @@ const serviceResponseHandlers: { [typeId: string]: LogotronicResponseHandler } =
 
 export let mqttClientInstance: MQTTClient;
 export let tcpClientInstance: TCPClient;
+let isMqttMessageListenerAttached = false; // <-- add this
 
 const dataprocessing = {
   initdataprocessing() {
@@ -280,6 +281,11 @@ const dataprocessing = {
         config.databus.client
       );
 
+      // Attach message handler immediately (avoid missing early metadata)
+      if (!isMqttMessageListenerAttached) {
+        MQTTLister();
+        isMqttMessageListenerAttached = true;
+      }
       logger.info("Trying to connect Databus");
 
       mqttClientInstance.client.on("connect", () => {
@@ -287,9 +293,6 @@ const dataprocessing = {
         mqttClientInstance.subscribe(config.databus.topic.read);
         mqttClientInstance.subscribe(config.databus.topic.status);
         mqttClientInstance.subscribe(config.databus.topic.metadata);
-        setTimeout(() => {
-          MQTTLister();
-        }, 2000);
       });
 
       // TCP connection will be controlled by PLC tag "LTA-Settings.connection.connect"
